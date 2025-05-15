@@ -1,0 +1,44 @@
+#set working directory
+setwd("~/masterthesis")
+
+library(readr)
+library(dplyr)
+library(RedditExtractoR)
+library(ggplot2)
+library(patchwork)
+
+
+# Find threads containing the keyword "valfusk"
+valfusk_threads <- find_thread_urls(
+  keywords = "valfusk",  # Searching for "valfusk" in post titles and content
+  sort_by = "comments",  # Sorting by most commented
+  subreddit = NA,        # Search across all subreddits
+  period = "all"         # No time restriction
+)
+
+# Extract thread URLs (use all or a subset)
+threads_urls <- valfusk_threads$url
+
+# Get content from each thread
+threads_content <- get_thread_content(urls = threads_urls)
+
+
+# Separate into submissions (original posts) and comments
+threads_submissions_valfusk <- threads_content$threads
+threads_comments_valfusk <- threads_content$comments
+
+
+# Create a "comment_id" column in the submissions to match comment structure
+threads_submissions_valfusk$comment_id <- "0"
+
+# Merge submissions (posts) and comments into a single dataset
+threads_full_valfusk <- bind_rows(threads_submissions_valfusk, threads_comments_valfusk)
+
+# Arrange by thread URL and comment hierarchy
+threads_full_valfusk <- threads_full_valfusk %>% 
+  arrange(url, comment_id)
+
+
+write.csv(threads_full_valfusk, "valfusk_reddit_data.csv", row.names = TRUE)
+
+summary(threads_full_valfusk)

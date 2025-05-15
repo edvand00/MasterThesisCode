@@ -1,0 +1,1053 @@
+setwd("~/masterthesis")
+
+library(rvest)
+library(xml2)
+library(tidyverse)
+
+# First Page
+url1 <- "https://www.flashback.org/sok/?query=valfusk&so=weight&page=2#"
+page1 <- read_html(url1)
+
+forum_title1 <- page1 %>%
+  html_nodes("a.thread-forum-title") %>% 
+  html_text2()
+
+forum_link1 <- page1 %>%
+  html_nodes("span.pull-right + a[id^='thread_title']") %>%
+  html_attr("href")
+
+base_url <- "https://www.flashback.org"
+link_hrefs1 <- paste0(base_url, forum_link1)
+
+# Exclude "Politik: USA" forum from forum_title1 and corresponding links
+forum_title1_filtered <- forum_title1[forum_title1 != "Politik: USA"]
+link_hrefs1_filtered <- link_hrefs1[forum_title1 != "Politik: USA"]
+
+# Print the filtered forum titles and links
+print(forum_title1_filtered)
+print(link_hrefs1_filtered)
+
+# Second Page
+url2 <- "https://www.flashback.org/sok/?query=valfusk&so=weight&page=2"
+page2 <- read_html(url2)
+
+forum_title2 <- page2 %>%
+  html_nodes("a.thread-forum-title") %>% 
+  html_text2()
+
+forum_link2 <- page2 %>%
+  html_nodes("span.pull-right + a[id^='thread_title']") %>%
+  html_attr("href")
+
+link_hrefs2 <- paste0(base_url, forum_link2)
+
+# Exclude "Politik: USA" forum from forum_title2 and corresponding links
+forum_title2_filtered <- forum_title2[forum_title2 != "Politik: USA"]
+link_hrefs2_filtered <- link_hrefs2[forum_title2 != "Politik: USA"]
+
+# Print the filtered forum titles and links from the second page
+print(forum_title2_filtered)
+print(link_hrefs2_filtered)
+
+# Merge the links from both pages
+all_links <- c(link_hrefs1_filtered, link_hrefs2_filtered)
+
+# Print the merged links
+print(all_links)
+
+# step 2, scraping posts from one forum containg discussions of election froud
+
+url <- "https://www.flashback.org/t2975477p1" # Replace with your actual URL
+page <- read_html(url)
+
+
+# Extract Poster Content
+post_content <- page %>%
+  html_nodes("div.post_message") %>%
+  html_text2();post_content
+
+# Extract Poster Content
+post_quotes <- page %>%
+  html_nodes("div.post-bbcode-quote-wrapper") %>%
+  html_text2();post_quotes
+
+# Function to remove quoted text from post content
+remove_quotes <- function(post_content, post_quotes) {
+  # Initialize the cleaned content with the original content
+  cleaned_content <- post_content
+  
+  # Loop through each quote
+  for (quote in post_quotes) {
+    # Remove the quote from the cleaned content using gsub with fixed=TRUE for exact matching
+    cleaned_content <- gsub(quote, "", cleaned_content, fixed = TRUE)
+  }
+  
+  # Clean up extra newlines and whitespace
+  cleaned_content <- trimws(gsub("\n{2,}", "\n", cleaned_content))
+  
+  # Return the cleaned content
+  return(cleaned_content)
+}
+
+# Apply the function
+post_content <- remove_quotes(post_content, post_quotes)
+
+# Print the cleaned content
+print(post_content)
+
+
+
+# Extract Poster Userames  
+usernames <- page %>%
+  html_nodes("a.post-user-username") %>%
+  html_text2();usernames
+
+
+# Extract Timestamps
+timestamps <- page %>%
+  html_nodes("div.post-heading") %>%
+  html_text2() %>%
+  sub(",.*", "", .);timestamps 
+
+
+# Append NA values where necessary to ensure equal length (NA padding)
+max_length <- max(length(usernames), length(timestamps), length(post_content))
+
+# Add NA values to the vectors to match the max length
+usernames <- c(usernames, rep(NA, max_length - length(usernames)))
+timestamps <- c(timestamps, rep(NA, max_length - length(timestamps)))
+post_content <- c(post_content, rep(NA, max_length - length(post_content)))
+
+# Create a Data Frame
+forum_data <- data.frame(
+  poster = usernames,
+  timestamp = timestamps,
+  content = post_content,
+  stringsAsFactors = FALSE
+)
+
+
+
+
+
+
+# Step three collect form all pages
+
+
+#Extremt valfusk bakom årets resultat?: t2975477, politik inrikes 272 pages
+
+library(rvest)
+library(dplyr)
+
+# Step 1: Generate 272 links
+base_url <- "https://www.flashback.org/t2975477p" # Adjust the base URL here 
+page_numbers <- 1:272  # Create a vector of page numbers from 1 to 23
+
+# Create a list of links for all 272 pages
+links_272 <- sapply(page_numbers, function(i) paste0(base_url, i))
+
+# Step 2: Scrape posts from all 272 pages
+scrape_forum_page <- function(url) {
+  # Read the HTML content of the page
+  page <- read_html(url)
+  
+  # Extract Poster Content
+  post_content <- page %>%
+    html_nodes("div.post_message") %>%
+    html_text2()
+  
+  # Extract quoted content
+  post_quotes <- page %>%
+    html_nodes("div.post-bbcode-quote-wrapper") %>%
+    html_text2()
+  
+  # Function to remove quoted text from post content
+  remove_quotes <- function(post_content, post_quotes) {
+    cleaned_content <- post_content
+    for (quote in post_quotes) {
+      cleaned_content <- gsub(quote, "", cleaned_content, fixed = TRUE)
+    }
+    cleaned_content <- trimws(gsub("\n{2,}", "\n", cleaned_content))
+    return(cleaned_content)
+  }
+  
+  # Apply the function to remove quotes
+  post_content <- remove_quotes(post_content, post_quotes)
+  
+  # Extract Poster Usernames
+  usernames <- page %>%
+    html_nodes("a.post-user-username") %>%
+    html_text2()
+  
+  # Extract Timestamps
+  timestamps <- page %>%
+    html_nodes("div.post-heading") %>%
+    html_text2() %>%
+    sub(",.*", "", .)
+  
+  # Ensure equal length of vectors by padding with NA values
+  max_length <- max(length(usernames), length(timestamps), length(post_content))
+  
+  usernames <- c(usernames, rep(NA, max_length - length(usernames)))
+  timestamps <- c(timestamps, rep(NA, max_length - length(timestamps)))
+  post_content <- c(post_content, rep(NA, max_length - length(post_content)))
+  
+  # Return a data frame for the current page
+  forum_data <- data.frame(
+    poster = usernames,
+    timestamp = timestamps,
+    content = post_content,
+    stringsAsFactors = FALSE
+  )
+  
+  return(forum_data)
+}
+
+# Initialize an empty list to store data frames
+all_forum_data <- list()
+
+# Loop through all the links
+for (link in links_272) {
+  forum_data <- scrape_forum_page(link)
+  all_forum_data[[length(all_forum_data) + 1]] <- forum_data
+  print(paste0("Finished scraping: ", link))
+  
+  # Optional: Pause to avoid overloading the server
+  Sys.sleep(runif(1, min = 2, max = 5))
+}
+
+# Combine all data frames into one large data frame
+final_forum_data <- do.call(rbind, all_forum_data)
+
+# Save the data to a CSV file
+write.csv(final_forum_data, "scraped_forum_data_272_pages.csv", row.names = TRUE)
+
+# Combine all data frames into one (optional step, but you've already done this)
+t2975477_data <- do.call(rbind, all_forum_data)
+
+
+
+
+#### Valfusk angående rösträkningar. https://www.flashback.org/t3437303, 23 p
+
+
+
+# Step 1: Generate 23 links
+base_url <- "https://www.flashback.org/t3437303p" # Adjust the base URL here (for example, t2975477p for thread 2975477, page 1)
+page_numbers <- 1:23  # Create a vector of page numbers from 1 to 23
+
+# Create a list of links for all 272 pages
+links_272 <- sapply(page_numbers, function(i) paste0(base_url, i))
+
+# Step 2: Scrape posts from all 272 pages
+scrape_forum_page <- function(url) {
+  # Read the HTML content of the page
+  page <- read_html(url)
+  
+  # Extract Poster Content
+  post_content <- page %>%
+    html_nodes("div.post_message") %>%
+    html_text2()
+  
+  # Extract quoted content
+  post_quotes <- page %>%
+    html_nodes("div.post-bbcode-quote-wrapper") %>%
+    html_text2()
+  
+  # Function to remove quoted text from post content
+  remove_quotes <- function(post_content, post_quotes) {
+    cleaned_content <- post_content
+    for (quote in post_quotes) {
+      cleaned_content <- gsub(quote, "", cleaned_content, fixed = TRUE)
+    }
+    cleaned_content <- trimws(gsub("\n{2,}", "\n", cleaned_content))
+    return(cleaned_content)
+  }
+  
+  # Apply the function to remove quotes
+  post_content <- remove_quotes(post_content, post_quotes)
+  
+  # Extract Poster Usernames
+  usernames <- page %>%
+    html_nodes("a.post-user-username") %>%
+    html_text2()
+  
+  # Extract Timestamps
+  timestamps <- page %>%
+    html_nodes("div.post-heading") %>%
+    html_text2() %>%
+    sub(",.*", "", .)
+  
+  # Ensure equal length of vectors by padding with NA values
+  max_length <- max(length(usernames), length(timestamps), length(post_content))
+  
+  usernames <- c(usernames, rep(NA, max_length - length(usernames)))
+  timestamps <- c(timestamps, rep(NA, max_length - length(timestamps)))
+  post_content <- c(post_content, rep(NA, max_length - length(post_content)))
+  
+  # Return a data frame for the current page
+  forum_data <- data.frame(
+    poster = usernames,
+    timestamp = timestamps,
+    content = post_content,
+    stringsAsFactors = FALSE
+  )
+  
+  return(forum_data)
+}
+
+# Initialize an empty list to store data frames
+all_forum_data <- list()
+
+# Loop through all the links
+for (link in links_272) {
+  forum_data <- scrape_forum_page(link)
+  all_forum_data[[length(all_forum_data) + 1]] <- forum_data
+  print(paste0("Finished scraping: ", link))
+  
+  # Optional: Pause to avoid overloading the server
+  Sys.sleep(runif(1, min = 2, max = 5))
+}
+
+# Combine all data frames into one large data frame
+final_forum_data <- do.call(rbind, all_forum_data)
+
+# Save the data to a CSV file
+write.csv(final_forum_data, "ValfuskAngåendeRösträkningar.csv", row.names = TRUE)
+
+# Combine all data frames into one (optional step, but you've already done this)
+t3437303_data <- do.call(rbind, all_forum_data)
+
+
+
+
+
+#valfusk i valet 2022: https://www.flashback.org/t3438489 23 pages
+
+
+# Step 1: Generate 23 links
+base_url <- "https://www.flashback.org/t3438489p" # Adjust the base URL here (for example, t2975477p for thread 2975477, page 1)
+page_numbers <- 1:23  # Create a vector of page numbers from 1 to 23
+
+# Create a list of links for all 272 pages
+links_272 <- sapply(page_numbers, function(i) paste0(base_url, i))
+
+# Step 2: Scrape posts from all 272 pages
+scrape_forum_page <- function(url) {
+  # Read the HTML content of the page
+  page <- read_html(url)
+  
+  # Extract Poster Content
+  post_content <- page %>%
+    html_nodes("div.post_message") %>%
+    html_text2()
+  
+  # Extract quoted content
+  post_quotes <- page %>%
+    html_nodes("div.post-bbcode-quote-wrapper") %>%
+    html_text2()
+  
+  # Function to remove quoted text from post content
+  remove_quotes <- function(post_content, post_quotes) {
+    cleaned_content <- post_content
+    for (quote in post_quotes) {
+      cleaned_content <- gsub(quote, "", cleaned_content, fixed = TRUE)
+    }
+    cleaned_content <- trimws(gsub("\n{2,}", "\n", cleaned_content))
+    return(cleaned_content)
+  }
+  
+  # Apply the function to remove quotes
+  post_content <- remove_quotes(post_content, post_quotes)
+  
+  # Extract Poster Usernames
+  usernames <- page %>%
+    html_nodes("a.post-user-username") %>%
+    html_text2()
+  
+  # Extract Timestamps
+  timestamps <- page %>%
+    html_nodes("div.post-heading") %>%
+    html_text2() %>%
+    sub(",.*", "", .)
+  
+  # Ensure equal length of vectors by padding with NA values
+  max_length <- max(length(usernames), length(timestamps), length(post_content))
+  
+  usernames <- c(usernames, rep(NA, max_length - length(usernames)))
+  timestamps <- c(timestamps, rep(NA, max_length - length(timestamps)))
+  post_content <- c(post_content, rep(NA, max_length - length(post_content)))
+  
+  # Return a data frame for the current page
+  forum_data <- data.frame(
+    poster = usernames,
+    timestamp = timestamps,
+    content = post_content,
+    stringsAsFactors = FALSE
+  )
+  
+  return(forum_data)
+}
+
+# Initialize an empty list to store data frames
+all_forum_data <- list()
+
+# Loop through all the links
+for (link in links_272) {
+  forum_data <- scrape_forum_page(link)
+  all_forum_data[[length(all_forum_data) + 1]] <- forum_data
+  print(paste0("Finished scraping: ", link))
+  
+  # Optional: Pause to avoid overloading the server
+  Sys.sleep(runif(1, min = 2, max = 5))
+}
+
+# Combine all data frames into one large data frame
+final_forum_data <- do.call(rbind, all_forum_data)
+
+# Save the data to a CSV file
+write.csv(final_forum_data, "ValfuskIValet2022.csv", row.names = TRUE)
+
+# Combine all data frames into one (optional step, but you've already done this)
+t3438489_data <- do.call(rbind, all_forum_data)
+
+
+
+#valfusk 2022? vad tror ni? 10 pages, https://www.flashback.org/t3341176
+
+
+
+# Step 1: Generate 23 links
+base_url <- "https://www.flashback.org/t3341176p" # Adjust the base URL here (for example, t2975477p for thread 2975477, page 1)
+page_numbers <- 1:10  # Create a vector of page numbers from 1 to 23
+
+# Create a list of links for all 272 pages
+links_272 <- sapply(page_numbers, function(i) paste0(base_url, i))
+
+# Step 2: Scrape posts from all 272 pages
+scrape_forum_page <- function(url) {
+  # Read the HTML content of the page
+  page <- read_html(url)
+  
+  # Extract Poster Content
+  post_content <- page %>%
+    html_nodes("div.post_message") %>%
+    html_text2()
+  
+  # Extract quoted content
+  post_quotes <- page %>%
+    html_nodes("div.post-bbcode-quote-wrapper") %>%
+    html_text2()
+  
+  # Function to remove quoted text from post content
+  remove_quotes <- function(post_content, post_quotes) {
+    cleaned_content <- post_content
+    for (quote in post_quotes) {
+      cleaned_content <- gsub(quote, "", cleaned_content, fixed = TRUE)
+    }
+    cleaned_content <- trimws(gsub("\n{2,}", "\n", cleaned_content))
+    return(cleaned_content)
+  }
+  
+  # Apply the function to remove quotes
+  post_content <- remove_quotes(post_content, post_quotes)
+  
+  # Extract Poster Usernames
+  usernames <- page %>%
+    html_nodes("a.post-user-username") %>%
+    html_text2()
+  
+  # Extract Timestamps
+  timestamps <- page %>%
+    html_nodes("div.post-heading") %>%
+    html_text2() %>%
+    sub(",.*", "", .)
+  
+  # Ensure equal length of vectors by padding with NA values
+  max_length <- max(length(usernames), length(timestamps), length(post_content))
+  
+  usernames <- c(usernames, rep(NA, max_length - length(usernames)))
+  timestamps <- c(timestamps, rep(NA, max_length - length(timestamps)))
+  post_content <- c(post_content, rep(NA, max_length - length(post_content)))
+  
+  # Return a data frame for the current page
+  forum_data <- data.frame(
+    poster = usernames,
+    timestamp = timestamps,
+    content = post_content,
+    stringsAsFactors = FALSE
+  )
+  
+  return(forum_data)
+}
+
+# Initialize an empty list to store data frames
+all_forum_data <- list()
+
+# Loop through all the links
+for (link in links_272) {
+  forum_data <- scrape_forum_page(link)
+  all_forum_data[[length(all_forum_data) + 1]] <- forum_data
+  print(paste0("Finished scraping: ", link))
+  
+  # Optional: Pause to avoid overloading the server
+  Sys.sleep(runif(1, min = 2, max = 5))
+}
+
+# Combine all data frames into one large data frame
+final_forum_data <- do.call(rbind, all_forum_data)
+
+# Save the data to a CSV file
+write.csv(final_forum_data, "Valfusk2022vadtrorni.csv", row.names = TRUE)
+
+# Combine all data frames into one (optional step, but you've already done this)
+t3341176_data <- do.call(rbind, all_forum_data)
+
+
+
+#varför skyller inte vänstern på valfusk,  https://www.flashback.org/t3453703, 11 pages
+
+# Step 1: Generate 23 links
+base_url <- "https://www.flashback.org/t3453703p" # Adjust the base URL here (for example, t2975477p for thread 2975477, page 1)
+page_numbers <- 1:11  # Create a vector of page numbers from 1 to 23
+
+# Create a list of links for all 272 pages
+links_272 <- sapply(page_numbers, function(i) paste0(base_url, i))
+
+# Step 2: Scrape posts from all 272 pages
+scrape_forum_page <- function(url) {
+  # Read the HTML content of the page
+  page <- read_html(url)
+  
+  # Extract Poster Content
+  post_content <- page %>%
+    html_nodes("div.post_message") %>%
+    html_text2()
+  
+  # Extract quoted content
+  post_quotes <- page %>%
+    html_nodes("div.post-bbcode-quote-wrapper") %>%
+    html_text2()
+  
+  # Function to remove quoted text from post content
+  remove_quotes <- function(post_content, post_quotes) {
+    cleaned_content <- post_content
+    for (quote in post_quotes) {
+      cleaned_content <- gsub(quote, "", cleaned_content, fixed = TRUE)
+    }
+    cleaned_content <- trimws(gsub("\n{2,}", "\n", cleaned_content))
+    return(cleaned_content)
+  }
+  
+  # Apply the function to remove quotes
+  post_content <- remove_quotes(post_content, post_quotes)
+  
+  # Extract Poster Usernames
+  usernames <- page %>%
+    html_nodes("a.post-user-username") %>%
+    html_text2()
+  
+  # Extract Timestamps
+  timestamps <- page %>%
+    html_nodes("div.post-heading") %>%
+    html_text2() %>%
+    sub(",.*", "", .)
+  
+  # Ensure equal length of vectors by padding with NA values
+  max_length <- max(length(usernames), length(timestamps), length(post_content))
+  
+  usernames <- c(usernames, rep(NA, max_length - length(usernames)))
+  timestamps <- c(timestamps, rep(NA, max_length - length(timestamps)))
+  post_content <- c(post_content, rep(NA, max_length - length(post_content)))
+  
+  # Return a data frame for the current page
+  forum_data <- data.frame(
+    poster = usernames,
+    timestamp = timestamps,
+    content = post_content,
+    stringsAsFactors = FALSE
+  )
+  
+  return(forum_data)
+}
+
+# Initialize an empty list to store data frames
+all_forum_data <- list()
+
+# Loop through all the links
+for (link in links_272) {
+  forum_data <- scrape_forum_page(link)
+  all_forum_data[[length(all_forum_data) + 1]] <- forum_data
+  print(paste0("Finished scraping: ", link))
+  
+  # Optional: Pause to avoid overloading the server
+  Sys.sleep(runif(1, min = 2, max = 5))
+}
+
+# Combine all data frames into one large data frame
+final_forum_data <- do.call(rbind, all_forum_data)
+
+# Save the data to a CSV file
+write.csv(final_forum_data, "varförSkyllerInteVänsternPåValfusk.csv", row.names = TRUE)
+
+# Combine all data frames into one (optional step, but you've already done this)
+t3453703p_data <- do.call(rbind, all_forum_data)
+
+
+
+
+# valfusk 2020 - var femte väljare erkäner att de röstade olagligt
+
+# Step 1: Generate 23 links
+base_url <- "https://www.flashback.org/t3453703p" # Adjust the base URL here (for example, t2975477p for thread 2975477, page 1)
+page_numbers <- 1:11  # Create a vector of page numbers from 1 to 23
+
+# Create a list of links for all 272 pages
+links_272 <- sapply(page_numbers, function(i) paste0(base_url, i))
+
+# Step 2: Scrape posts from all 272 pages
+scrape_forum_page <- function(url) {
+  # Read the HTML content of the page
+  page <- read_html(url)
+  
+  # Extract Poster Content
+  post_content <- page %>%
+    html_nodes("div.post_message") %>%
+    html_text2()
+  
+  # Extract quoted content
+  post_quotes <- page %>%
+    html_nodes("div.post-bbcode-quote-wrapper") %>%
+    html_text2()
+  
+  # Function to remove quoted text from post content
+  remove_quotes <- function(post_content, post_quotes) {
+    cleaned_content <- post_content
+    for (quote in post_quotes) {
+      cleaned_content <- gsub(quote, "", cleaned_content, fixed = TRUE)
+    }
+    cleaned_content <- trimws(gsub("\n{2,}", "\n", cleaned_content))
+    return(cleaned_content)
+  }
+  
+  # Apply the function to remove quotes
+  post_content <- remove_quotes(post_content, post_quotes)
+  
+  # Extract Poster Usernames
+  usernames <- page %>%
+    html_nodes("a.post-user-username") %>%
+    html_text2()
+  
+  # Extract Timestamps
+  timestamps <- page %>%
+    html_nodes("div.post-heading") %>%
+    html_text2() %>%
+    sub(",.*", "", .)
+  
+  # Ensure equal length of vectors by padding with NA values
+  max_length <- max(length(usernames), length(timestamps), length(post_content))
+  
+  usernames <- c(usernames, rep(NA, max_length - length(usernames)))
+  timestamps <- c(timestamps, rep(NA, max_length - length(timestamps)))
+  post_content <- c(post_content, rep(NA, max_length - length(post_content)))
+  
+  # Return a data frame for the current page
+  forum_data <- data.frame(
+    poster = usernames,
+    timestamp = timestamps,
+    content = post_content,
+    stringsAsFactors = FALSE
+  )
+  
+  return(forum_data)
+}
+
+# Initialize an empty list to store data frames
+all_forum_data <- list()
+
+# Loop through all the links
+for (link in links_272) {
+  forum_data <- scrape_forum_page(link)
+  all_forum_data[[length(all_forum_data) + 1]] <- forum_data
+  print(paste0("Finished scraping: ", link))
+  
+  # Optional: Pause to avoid overloading the server
+  Sys.sleep(runif(1, min = 2, max = 5))
+}
+
+# Combine all data frames into one large data frame
+final_forum_data <- do.call(rbind, all_forum_data)
+
+# Save the data to a CSV file
+write.csv(final_forum_data, "varförSkyllerInteVänsternPåValfusk.csv", row.names = TRUE)
+
+# Combine all data frames into one (optional step, but you've already done this)
+t3453703p_data <- do.call(rbind, all_forum_data)
+
+
+# valfusk i Sverige, egna erfaenheter: https://www.flashback.org/t3608992, 3 pages
+
+
+# Step 1: Generate 23 links
+base_url <- "https://www.flashback.org/t3608992p" # Adjust the base URL here (for example, t2975477p for thread 2975477, page 1)
+page_numbers <- 1:3  # Create a vector of page numbers from 1 to 23
+
+# Create a list of links for all 272 pages
+links_272 <- sapply(page_numbers, function(i) paste0(base_url, i))
+
+# Step 2: Scrape posts from all 272 pages
+scrape_forum_page <- function(url) {
+  # Read the HTML content of the page
+  page <- read_html(url)
+  
+  # Extract Poster Content
+  post_content <- page %>%
+    html_nodes("div.post_message") %>%
+    html_text2()
+  
+  # Extract quoted content
+  post_quotes <- page %>%
+    html_nodes("div.post-bbcode-quote-wrapper") %>%
+    html_text2()
+  
+  # Function to remove quoted text from post content
+  remove_quotes <- function(post_content, post_quotes) {
+    cleaned_content <- post_content
+    for (quote in post_quotes) {
+      cleaned_content <- gsub(quote, "", cleaned_content, fixed = TRUE)
+    }
+    cleaned_content <- trimws(gsub("\n{2,}", "\n", cleaned_content))
+    return(cleaned_content)
+  }
+  
+  # Apply the function to remove quotes
+  post_content <- remove_quotes(post_content, post_quotes)
+  
+  # Extract Poster Usernames
+  usernames <- page %>%
+    html_nodes("a.post-user-username") %>%
+    html_text2()
+  
+  # Extract Timestamps
+  timestamps <- page %>%
+    html_nodes("div.post-heading") %>%
+    html_text2() %>%
+    sub(",.*", "", .)
+  
+  # Ensure equal length of vectors by padding with NA values
+  max_length <- max(length(usernames), length(timestamps), length(post_content))
+  
+  usernames <- c(usernames, rep(NA, max_length - length(usernames)))
+  timestamps <- c(timestamps, rep(NA, max_length - length(timestamps)))
+  post_content <- c(post_content, rep(NA, max_length - length(post_content)))
+  
+  # Return a data frame for the current page
+  forum_data <- data.frame(
+    poster = usernames,
+    timestamp = timestamps,
+    content = post_content,
+    stringsAsFactors = FALSE
+  )
+  
+  return(forum_data)
+}
+
+# Initialize an empty list to store data frames
+all_forum_data <- list()
+
+# Loop through all the links
+for (link in links_272) {
+  forum_data <- scrape_forum_page(link)
+  all_forum_data[[length(all_forum_data) + 1]] <- forum_data
+  print(paste0("Finished scraping: ", link))
+  
+  # Optional: Pause to avoid overloading the server
+  Sys.sleep(runif(1, min = 2, max = 5))
+}
+
+# Combine all data frames into one large data frame
+final_forum_data <- do.call(rbind, all_forum_data)
+
+# Save the data to a CSV file
+write.csv(final_forum_data, "ValfuskISverigeEgnaErfarenheter.csv", row.names = TRUE)
+
+
+#valfusk? https://www.flashback.org/t3452902 1 page
+
+url <- "https://www.flashback.org/t3452902p1" # Replace with your actual URL
+page <- read_html(url)
+
+# Extract Poster Content
+post_content <- page %>%
+  html_nodes("div.post_message") %>%
+  html_text2();post_content
+
+# Extract Poster Content
+post_quotes <- page %>%
+  html_nodes("div.post-bbcode-quote-wrapper") %>%
+  html_text2();post_quotes
+
+# Function to remove quoted text from post content
+remove_quotes <- function(post_content, post_quotes) {
+  # Initialize the cleaned content with the original content
+  cleaned_content <- post_content
+  
+  # Loop through each quote
+  for (quote in post_quotes) {
+    # Remove the quote from the cleaned content using gsub with fixed=TRUE for exact matching
+    cleaned_content <- gsub(quote, "", cleaned_content, fixed = TRUE)
+  }
+  
+  # Clean up extra newlines and whitespace
+  cleaned_content <- trimws(gsub("\n{2,}", "\n", cleaned_content))
+  
+  # Return the cleaned content
+  return(cleaned_content)
+}
+
+# Apply the function
+post_content <- remove_quotes(post_content, post_quotes)
+
+# Print the cleaned content
+print(post_content)
+
+
+
+# Extract Poster Userames  
+usernames <- page %>%
+  html_nodes("a.post-user-username") %>%
+  html_text2();usernames
+
+
+# Extract Timestamps
+timestamps <- page %>%
+  html_nodes("div.post-heading") %>%
+  html_text2() %>%
+  sub(",.*", "", .);timestamps 
+
+
+# Append NA values where necessary to ensure equal length (NA padding)
+max_length <- max(length(usernames), length(timestamps), length(post_content))
+
+# Add NA values to the vectors to match the max length
+usernames <- c(usernames, rep(NA, max_length - length(usernames)))
+timestamps <- c(timestamps, rep(NA, max_length - length(timestamps)))
+post_content <- c(post_content, rep(NA, max_length - length(post_content)))
+
+# Create a Data Frame
+forum_data <- data.frame(
+  poster = usernames,
+  timestamp = timestamps,
+  content = post_content,
+  stringsAsFactors = FALSE
+)
+
+# Save the data to a CSV file
+write.csv(forum_data, "valfusk.csv", row.names = TRUE)
+
+
+#Har M, KD, L o SD vidtagit några åtgärder för att undvika valfusk i EU-valet?
+#https://www.flashback.org/t3607639, 1 page
+
+
+url <- "https://www.flashback.org/t3607639p1" # Replace with your actual URL
+page <- read_html(url)
+
+# Extract Poster Content
+post_content <- page %>%
+  html_nodes("div.post_message") %>%
+  html_text2();post_content
+
+# Extract Poster Content
+post_quotes <- page %>%
+  html_nodes("div.post-bbcode-quote-wrapper") %>%
+  html_text2();post_quotes
+
+# Function to remove quoted text from post content
+remove_quotes <- function(post_content, post_quotes) {
+  # Initialize the cleaned content with the original content
+  cleaned_content <- post_content
+  
+  # Loop through each quote
+  for (quote in post_quotes) {
+    # Remove the quote from the cleaned content using gsub with fixed=TRUE for exact matching
+    cleaned_content <- gsub(quote, "", cleaned_content, fixed = TRUE)
+  }
+  
+  # Clean up extra newlines and whitespace
+  cleaned_content <- trimws(gsub("\n{2,}", "\n", cleaned_content))
+  
+  # Return the cleaned content
+  return(cleaned_content)
+}
+
+# Apply the function
+post_content <- remove_quotes(post_content, post_quotes)
+
+# Print the cleaned content
+print(post_content)
+
+
+
+# Extract Poster Userames  
+usernames <- page %>%
+  html_nodes("a.post-user-username") %>%
+  html_text2();usernames
+
+
+# Extract Timestamps
+timestamps <- page %>%
+  html_nodes("div.post-heading") %>%
+  html_text2() %>%
+  sub(",.*", "", .);timestamps 
+
+
+# Append NA values where necessary to ensure equal length (NA padding)
+max_length <- max(length(usernames), length(timestamps), length(post_content))
+
+# Add NA values to the vectors to match the max length
+usernames <- c(usernames, rep(NA, max_length - length(usernames)))
+timestamps <- c(timestamps, rep(NA, max_length - length(timestamps)))
+post_content <- c(post_content, rep(NA, max_length - length(post_content)))
+
+# Create a Data Frame
+forum_data <- data.frame(
+  poster = usernames,
+  timestamp = timestamps,
+  content = post_content,
+  stringsAsFactors = FALSE
+)
+
+# Save the data to a CSV file
+write.csv(forum_data, "HarMKDSDVIdagitÅtergärderEUValet.csv", row.names = TRUE)
+
+
+#Operation granska valfusk,https://www.flashback.org/t3369793, 1 page
+
+
+url <- "https://www.flashback.org/t3369793p1" # Replace with your actual URL
+page <- read_html(url)
+
+# Extract Poster Content
+post_content <- page %>%
+  html_nodes("div.post_message") %>%
+  html_text2();post_content
+
+# Extract Poster Content
+post_quotes <- page %>%
+  html_nodes("div.post-bbcode-quote-wrapper") %>%
+  html_text2();post_quotes
+
+# Function to remove quoted text from post content
+remove_quotes <- function(post_content, post_quotes) {
+  # Initialize the cleaned content with the original content
+  cleaned_content <- post_content
+  
+  # Loop through each quote
+  for (quote in post_quotes) {
+    # Remove the quote from the cleaned content using gsub with fixed=TRUE for exact matching
+    cleaned_content <- gsub(quote, "", cleaned_content, fixed = TRUE)
+  }
+  
+  # Clean up extra newlines and whitespace
+  cleaned_content <- trimws(gsub("\n{2,}", "\n", cleaned_content))
+  
+  # Return the cleaned content
+  return(cleaned_content)
+}
+
+# Apply the function
+post_content <- remove_quotes(post_content, post_quotes)
+
+# Print the cleaned content
+print(post_content)
+
+
+
+# Extract Poster Userames  
+usernames <- page %>%
+  html_nodes("a.post-user-username") %>%
+  html_text2();usernames
+
+
+# Extract Timestamps
+timestamps <- page %>%
+  html_nodes("div.post-heading") %>%
+  html_text2() %>%
+  sub(",.*", "", .);timestamps 
+
+
+# Append NA values where necessary to ensure equal length (NA padding)
+max_length <- max(length(usernames), length(timestamps), length(post_content))
+
+# Add NA values to the vectors to match the max length
+usernames <- c(usernames, rep(NA, max_length - length(usernames)))
+timestamps <- c(timestamps, rep(NA, max_length - length(timestamps)))
+post_content <- c(post_content, rep(NA, max_length - length(post_content)))
+
+# Create a Data Frame
+forum_data <- data.frame(
+  poster = usernames,
+  timestamp = timestamps,
+  content = post_content,
+  stringsAsFactors = FALSE
+)
+
+# Save the data to a CSV file
+write.csv(forum_data, "operationgranskavalfusk.csv", row.names = TRUE)
+
+
+#combinging all datasets
+
+setwd("~/Masterthesis")
+
+library(readr)
+library(tidyverse)
+
+# Read the datasets and add a column indicating their source
+ExtremtValfuskBakomÅretsResultat <- read_csv("ExtremtValfuskBakomÅretsResultat.csv") %>% 
+  mutate(source = "ExtremtValfuskBakomÅretsResultat")
+
+ValfuskAngåendeRösträkningar <- read_csv("ValfuskAngåendeRösträkningar.csv") %>% 
+  mutate(source = "ValfuskAngåendeRösträkningar")
+
+ValfuskIValet2022 <- read_csv("ValfuskIValet2022.csv") %>% 
+  mutate(source = "ValfuskIValet2022")
+
+Valfusk2022vadtrorni <- read_csv("Valfusk2022vadtrorni.csv") %>% 
+  mutate(source = "Valfusk2022vadtrorni")
+
+varförSkyllerInteVänsternPåValfusk <- read_csv("varförSkyllerInteVänsternPåValfusk.csv") %>% 
+  mutate(source = "varförSkyllerInteVänsternPåValfusk")
+
+ValfuskISverigeEgnaErfarenheter <- read_csv("ValfuskISverigeEgnaErfarenheter.csv") %>% 
+  mutate(source = "ValfuskISverigeEgnaErfarenheter")
+
+valfusk <- read_csv("valfusk.csv") %>% 
+  mutate(source = "valfusk")
+
+HarMKDSDVIdagitÅtergärderEUValet <- read_csv("HarMKDSDVIdagitÅtergärderEUValet.csv") %>% 
+  mutate(source = "HarMKDSDVIdagitÅtergärderEUValet")
+
+operationgranskavalfusk <- read_csv("operationgranskavalfusk.csv") %>% 
+  mutate(source = "operationgranskavalfusk")
+
+# Combine all datasets into one
+Valfusk_flashback_data <- bind_rows(
+  ExtremtValfuskBakomÅretsResultat, 
+  ValfuskAngåendeRösträkningar, 
+  ValfuskIValet2022, 
+  Valfusk2022vadtrorni, 
+  varförSkyllerInteVänsternPåValfusk, 
+  ValfuskISverigeEgnaErfarenheter, 
+  valfusk, 
+  HarMKDSDVIdagitÅtergärderEUValet, 
+  operationgranskavalfusk
+)
+
+# Print first few rows
+print(head(Valfusk_flashback_data))
+
+# Save the merged dataset
+write_csv(Valfusk_flashback_data, "Valfusk_flashback_data.csv")
+

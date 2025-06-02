@@ -1,0 +1,186 @@
+# Install required libraries
+!pip install pandas spacy umap-learn bertopic sentence-transformers
+
+# Download the Swedish spaCy model
+!python -m spacy download sv_core_news_sm
+
+
+import pandas as pd
+import re
+import spacy
+from umap import UMAP
+from bertopic import BERTopic
+from sentence_transformers import SentenceTransformer
+import matplotlib.pyplot as plt
+
+# -------------------- 1. Load Data --------------------
+# Load the CSV files you uploaded
+df_r = pd.read_csv('reddit_municipal_posts.csv', encoding='ISO-8859-1')
+df_f = pd.read_csv('flashback_municipal_posts.csv', encoding='ISO-8859-1')
+
+
+# Add a source column to each DataFrame to keep track of the origin
+df_r['source'] = 'reddit_municipal_posts'
+df_f['source'] = 'flashback_municipal_posts'
+
+# Concatenate data from all files
+df = pd.concat([df_r, df_f], ignore_index=True)
+
+# Drop rows with missing 'post' column data
+df.dropna(subset=['posts'], inplace=True)
+
+# -------------------- 2. Preprocess & Normalize Text --------------------
+
+nlp = spacy.load("sv_core_news_sm")
+
+# Define custom stop words (you can add any word here you want to exclude)
+custom_stop_words = ['just', 'fr', 'och', 'att', 'den', 'det', 'som', 'är', 'inte','vara','ngn','ngon','frn','p','gr','rst','rsta','kolla','edit' ]
+
+def preprocess_text(text):
+    text = str(text).lower()
+    text = re.sub(r"http\S+", "", text)  # Remove URLs
+    text = re.sub(r"[^a-zåäö0-9\s]", "", text)  # Remove non-alphanumeric characters
+    doc = nlp(text)
+    tokens = [
+        token.lemma_ for token in doc
+        if not token.is_punct and not token.is_space and
+        token.lemma_ not in custom_stop_words and
+        not token.is_stop
+    ]
+    return " ".join(tokens)
+df["processed_content"] = df["posts"].apply(preprocess_text)
+
+# -------------------- 3. Tokenize & Reconstruct Texts --------------------
+df["tokens"] = df["processed_content"].apply(lambda x: x.split())
+df["reconstructed_text"] = df["tokens"].apply(lambda x: " ".join(x))
+
+# -------------------- 4. Define BERTopic --------------------
+umap_model = UMAP(n_neighbors=15, n_components=5, min_dist=0.0, metric='cosine', random_state=42)
+
+# Load the Swedish SentenceTransformer model
+embedding_model = SentenceTransformer('KBLab/sentence-bert-swedish-cased')
+
+# Initialize BERTopic
+topic_model = BERTopic(
+    umap_model=umap_model,
+    min_topic_size=15, #adjusts if needed 15
+    embedding_model=embedding_model
+)
+
+# -------------------- 5. Fit BERTopic to Data --------------------
+docs = df["reconstructed_text"].tolist()
+topics, probs = topic_model.fit_transform(docs)
+
+# -------------------- 6. Visualize & Interpret Topics --------------------
+# Add the topic column to the DataFrame
+df["topic"] = topics
+
+# Print Topic Information
+print(topic_model.get_topic_info())
+
+# Visualize the top 10 topics in a bar chart
+topic_model.visualize_barchart(top_n_topics=10)
+
+# -------------------- 7. Visualize Topic Distribution by Source --------------------
+# Group the data by source and topic to count the distribution
+topic_counts = df.groupby(['source', 'topic']).size().unstack(fill_value=0)
+
+# Plot the distribution of topics for each source
+topic_counts.plot(kind='bar', stacked=True, figsize=(10, 6))
+plt.title('Topic Distribution by Source')
+plt.xlabel('Source')
+plt.ylabel('Number of Posts')
+plt.legend(title='Topic')
+plt.xticks(rotation=0)
+plt.show()
+
+# -------------------- 8. Save Topics to CSV ----------------'----
+df.to_csv("topic_model_results.csv", index=False)
+
+
+
+topic_names = {
+    -1: 'Unclassified',  # if you have -1 for unassigned topics
+     0: 'Fraud at polling stations',
+     1: 'Fraud in voting process',
+     2: 'Voting in general',
+     3: 'Möndal municipality ',
+     4: 'Stockholm election results'
+}
+
+topic_counts = topic_counts.rename(columns=topic_names)
+
+topic_counts.plot(kind='bar', stacked=True, figsize=(10, 6))
+plt.title('Topic Distribution: Comparing Flashback and Reddit')
+plt.xlabel('Platform')
+plt.ylabel('Number of Posts')
+plt.legend(title='Topic')
+plt.xticks(rotation=0)
+plt.show()
+
+
+# Visualize the top 10 topics in a bar chart
+topic_model.visualize_barchart(top_n_topics=10)
+
+
+import pandas as pd
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+
+# -------------------- 1. Load the CSV file --------------------
+df = pd.read_csv("topic_model_results.csv")
+
+# -------------------- 2. Create a Word Cloud for Each Topic --------------------
+# Drop rows with missing values or fill them with empty strings
+df = df.dropna(subset=['processed_content'])  # Or df['processed_content'] = df['processed_content'].fillna('')
+
+# Ensure 'processed_content' column contains only strings
+df['processed_content'] = df['processed_content'].astype(str)
+
+# Group the data by topics and combine the texts from each topic
+grouped = df.groupby('topic')['processed_content'].apply(' '.join).reset_index()
+
+# -------------------- 3. Generate and Display Word Clouds for Each Topic --------------------
+for topic_num, text in zip(grouped['topic'], grouped['processed_content']):
+    wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text)
+
+    plt.figure(figsize=(10, 5))
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.axis('off')
+    plt.title(f"Topic {topic_num}", fontsize=16)
+    plt.show()
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.manifold import Isomap
+from umap import UMAP
+from bertopic import BERTopic
+
+# -------------------- 1. Load the CSV File --------------------
+df = pd.read_csv("topic_model_results.csv")
+
+# -------------------- 2. Get Topic Probabilities --------------------
+# You can obtain the topic probabilities for each document
+topic_probabilities = df["topic"].values
+
+# -------------------- 3. Apply Isomap or UMAP for Dimensionality Reduction --------------------
+# Use UMAP (or Isomap) to reduce the dimensionality to 2D
+umap_model = UMAP(n_components=2)  # Reduce to 2D for visualization
+reduced_embeddings = umap_model.fit_transform(topic_probabilities.reshape(-1, 1))
+
+# -------------------- 4. Visualize Topics in 2D --------------------
+plt.figure(figsize=(10, 6))
+
+# Create a scatter plot
+plt.scatter(reduced_embeddings[:, 0], reduced_embeddings[:, 1], c=topic_probabilities, cmap='viridis', s=100)
+
+# Add topic labels for clarity
+for i, topic in enumerate(topic_probabilities):
+    plt.annotate(topic, (reduced_embeddings[i, 0], reduced_embeddings[i, 1]), fontsize=9)
+
+plt.title('Topic Distances Using UMAP')
+plt.xlabel('UMAP Component 1')
+plt.ylabel('UMAP Component 2')
+plt.colorbar(label='Topic ID')
+plt.show()

@@ -1,0 +1,490 @@
+#set working directory
+setwd("~/masterthesis")
+
+library(readr)
+
+Valfusk_flashback_data <- read_csv("Valfusk_flashback_data.csv")
+
+#Libraries
+library(readr)
+library(readxl)
+library(RedditExtractoR)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(gridExtra)
+library(ggplot2)
+library(tidyverse)
+library(sjPlot)
+library(knitr)
+library(kableExtra)
+library(lubridate)  # For date handling
+library(paletteer)
+library(patchwork) 
+library(gridExtra)
+library(grid)
+
+
+view(Valfusk_flashback_data)
+
+#summary
+summary(Valfusk_flashback_data)
+
+head(Valfusk_flashback_data)
+
+
+# Convert timestamp to date (if needed)
+Valfusk_flashback_data$timestamp <- as.Date(Valfusk_flashback_data$timestamp)
+
+# Group by date and count the number of comments per day
+comments_per_day <- Valfusk_flashback_data %>%
+  group_by(timestamp) %>%
+  summarise(comments_per_day = n()) %>%
+  arrange(timestamp)
+
+# Calculate the total posts per year
+posts_per_year <- comments_per_day %>%
+  group_by(year) %>%
+  summarise(total_posts = sum(comments_per_day))
+
+# Print the result
+print(posts_per_year)
+
+# Calculate the total comments for September 2022
+total_comments_sept_2022 <- comments_per_day %>%
+  filter(timestamp >= as.Date("2022-09-01") & timestamp <= as.Date("2022-09-30")) %>%
+  summarise(total_comments = sum(comments_per_day))
+
+# Print the result
+print(total_comments_sept_2022)
+
+# Calculate the total comments for September 2022
+total_comments_sept_2018 <- comments_per_day %>%
+  filter(timestamp >= as.Date("2018-09-01") & timestamp <= as.Date("2018-09-30")) %>%
+  summarise(total_comments = sum(comments_per_day))
+
+# Print the result
+print(total_comments_sept_2018)
+
+# Calculate the total comments for September 2022
+total_comments_sept_2018 <- comments_per_day %>%
+  filter(timestamp >= as.Date("2018-09-01") & timestamp <= as.Date("2018-09-30")) %>%
+  summarise(total_comments = sum(comments_per_day))
+
+# Print the result
+print(total_comments_sept_2018)
+
+# Calculate the total comments for September 2022
+total_comments_2019 <- comments_per_day %>%
+  filter(timestamp >= as.Date("2019-01-01") & timestamp <= as.Date("2019-12-31")) %>%
+  summarise(total_comments = sum(comments_per_day))
+
+# Print the result
+print(total_comments_2019)
+
+
+#logarithimic cale plot, comments over time
+
+ggplot(comments_per_day, aes(x = timestamp, y = comments_per_day)) +
+  geom_area(fill = "darkslateblue", alpha = 0) +
+  geom_line(linewidth = 0.5, lineend = "round", color = "darkslategray") +
+  geom_point(color = "darkslategray") +
+  labs(title = "Number of Posts Over Time (Log Scale)",
+       x = "Flashback (N = 4099)",
+       y = "Number of Posts (Log10)") +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_y_log10() +
+  theme_minimal() +
+  annotate("text", x = as.Date("2018-09-01"), y = Inf, label = "3072 posts elction month", vjust = 1.5, hjust = -0.1) +
+  annotate("text", x = as.Date("2022-09-01"), y = Inf, label = "348 post election month", vjust = 8, hjust = 0.5)
+
+
+
+# 
+
+ggplot(comments_per_day, aes(x = timestamp, y = comments_per_day)) +
+  geom_area(fill = "darkslategray", alpha = 0.5) +  # Adjust alpha for clarity
+  geom_line(linewidth = 0.5, lineend = "round", color = "darkslategray") +
+  geom_point(color = "darkslategray") +
+  labs(title = "Number of Posts Over Time (Log Scale)",
+       x = "Flashback (N = 4099)",
+       y = "Number of Posts (Log10)") +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_y_log10() +
+  theme_minimal() +
+  # Add annotations for September 2018 and 2022
+  annotate("text", x = as.Date("2018-09-01"), y = 1000,
+           label = "Sept 2018: 3072 posts", hjust = -0.1, vjust = 1,
+           color = "black") +  # More specific label
+  annotate("text", x = as.Date("2022-09-01"), y = 100,
+           label = "Sept 2022: 348 posts", hjust = -0.1, vjust = -1,
+           color = "black") +  # More specific label
+  geom_vline(xintercept = as.Date("2018-09-09"),
+             linetype = "dashed", color = "red", alpha = 1) +  # Vertical line 2018
+  geom_vline(xintercept = as.Date("2022-09-11"),
+             linetype = "dashed", color = "red", alpha = 2)   # Vertical line 2022
+
+
+#mentions of parties
+
+#mentions of location
+
+
+#mentions of 
+
+#posts per forum
+
+
+# Grid plots
+
+# Plot 2018
+plot_2018 <- ggplot(comments_per_day, aes(x = timestamp, y = comments_per_day)) +
+  geom_area(fill = "darkgoldenrod", alpha = 0.7) +
+  geom_line(linewidth = 0.5, lineend = "round", color = "darkgoldenrod") +
+  geom_point(color = "darkgoldenrod") +
+  labs(title = "2018 National Election",
+       x = "(3137 posts in total)",
+       y = "") +
+  scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b",
+    limits = as.Date(c("2018-09-01", "2018-12-01"))
+  ) +
+  scale_y_log10() +
+  theme_classic() +
+  geom_vline(xintercept = as.Date("2018-09-09"),
+             linetype = "dashed", color = "red", alpha = 2)
+
+# Plot 2019 EU election
+plot_2019 <- ggplot(comments_per_day, aes(x = timestamp, y = comments_per_day)) +
+  geom_area(fill = "deepskyblue4", alpha = 0.7) +
+  geom_line(linewidth = 0.5, lineend = "round", color = "deepskyblue4") +
+  geom_point(color = "deepskyblue4") +
+  labs(title = "2019 EU Election",
+       x = "(11 posts in total)",
+       y = "") +
+  scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b",
+    limits = as.Date(c("2019-02-15", "2019-06-01"))
+  ) +
+  scale_y_log10() +
+  theme_classic() +
+  geom_vline(xintercept = as.Date("2019-05-23"),
+             linetype = "dashed", color = "red", alpha = 2)
+
+# Plot 2022
+plot_2022 <- ggplot(comments_per_day, aes(x = timestamp, y = comments_per_day)) +
+  geom_area(fill = "darkgoldenrod", alpha = 0.7) +
+  geom_line(linewidth = 0.5, lineend = "round", color = "darkgoldenrod") +
+  geom_point(color = "darkgoldenrod") +
+  labs(title = "2022 National Election",
+       x = "(689 posts in total)",
+       y = "") +
+  scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b",
+    limits = as.Date(c("2022-08-15", "2022-10-15"))
+  ) +
+  scale_y_log10() +
+  theme_classic() +
+  geom_vline(xintercept = as.Date("2022-09-11"),
+             linetype = "dashed", color = "red", alpha = 2) +  
+  annotate("text", x = as.Date("2022-09-01"), y = 100,
+           label = "", hjust = -1, vjust = -4) 
+
+
+# Plot 2024 EU election
+plot_2024 <- ggplot(comments_per_day, aes(x = timestamp, y = comments_per_day)) +
+  geom_area(fill = "deepskyblue4", alpha = 0.7) +
+  geom_line(linewidth = 0.5, lineend = "round", color = "deepskyblue4") +
+  geom_point(color = "deepskyblue4") +
+  labs(title = "2024 EU Election",
+       x = "(42 posts in total)",
+       y = "") +
+  scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b",
+    limits = as.Date(c("2024-05-20", "2024-06-15"))
+  ) +
+  scale_y_log10() +
+  theme_classic() +
+  geom_vline(xintercept = as.Date("2024-06-09"),
+             linetype = "dashed", color = "red", alpha = 2) 
+
+# Combine the plots into a 2x2 grid using patchwork
+plot_grid <- (plot_2018 + plot_2019) / (plot_2022 + plot_2024) + 
+  plot_annotation(
+    title = "Election Fraud Claims Across Multiple Elections on Flashback",
+    subtitle = "Time series plot (logarithmic scale)",
+    caption = "Retrived from: https://www.flashback.org/"
+  )
+
+# Print the grid
+plot_grid
+
+
+# If needed, rename 'content' to 'posts'
+valfusk_flashback <- Valfusk_flashback_data %>%
+  rename(posts = content)
+
+# Filter 2018
+valfusk_2018 <- valfusk_flashback %>%
+  filter(lubridate::year(timestamp) == 2018)
+
+# Filter 2022
+valfusk_2022 <- valfusk_flashback %>%
+  filter(lubridate::year(timestamp) == 2022)
+
+# Write to CSV
+write_csv(valfusk_2018, "valfusk_flashback_2018.csv")
+write_csv(valfusk_2022, "valfusk_flashback_2022.csv")
+
+
+
+# Rename 'content' to 'posts'
+Valfusk_flashback_data <- Valfusk_flashback_data %>%
+  rename(posts = content)
+
+# Define keyword filters (case-insensitive)
+national_keywords <- c("nationell", "riksdagsval")
+municipal_keywords <- c("kommun", "kommunval")
+regional_keywords <- c("region", "landsting")
+
+# Filter by keyword category and only select the posts column
+national_posts <- Valfusk_flashback_data %>%
+  filter(str_detect(str_to_lower(posts), str_c(national_keywords, collapse = "|"))) %>%
+  select(posts) %>%
+  mutate(election_type = "National")
+
+municipal_posts <- Valfusk_flashback_data %>%
+  filter(str_detect(str_to_lower(posts), str_c(municipal_keywords, collapse = "|"))) %>%
+  select(posts) %>%
+  mutate(election_type = "Municipal")
+
+regional_posts <- Valfusk_flashback_data %>%
+  filter(str_detect(str_to_lower(posts), str_c(regional_keywords, collapse = "|"))) %>%
+  select(posts) %>%
+  mutate(election_type = "Regional")
+
+# Save to CSV, only including the 'posts' and 'election_type' columns
+write_csv(national_posts, "flashback_national_posts.csv")
+write_csv(municipal_posts, "flashback_municipal_posts.csv")
+write_csv(regional_posts, "flashback_regional_posts.csv")
+
+# Combine all posts into one dataset
+all_flashback_posts <- bind_rows(national_posts, municipal_posts, regional_posts)
+
+# Plot the combined data
+combined_flashback_plot <- all_flashback_posts %>%
+  count(year = lubridate::year(timestamp), election_type) %>%
+  ggplot(aes(x = year, y = n, fill = election_type)) +
+  geom_col(position = "dodge") +
+  labs(title = "Election Type Posts Over Time (Flashback)", x = "Year", y = "Posts") +
+  scale_fill_manual(values = c("National" = "#1f77b4", "Municipal" = "#2ca02c", "Regional" = "#ff7f0e"))
+
+# Print the combined plot
+combined_flashback_plot
+
+
+
+
+
+head(Valfusk_flashback_data)
+
+
+# Remove deleted/NA and rename content to posts
+valfusk_clean <- Valfusk_flashback_data %>%
+  filter(!is.na(poster), poster != "[deleted]") %>%
+  rename(posts = content)
+
+
+# Top 20 posters
+top_posters_flashback <- valfusk_clean %>%
+  count(poster, name = "post_count") %>%
+  arrange(desc(post_count)) %>%
+  slice_head(n = 20) %>%
+  mutate(anon_poster = paste0("user_", row_number()))
+
+valfusk_anon <- valfusk_clean %>%
+  left_join(top_posters_flashback %>% select(poster, anon_poster), by = "poster") %>%
+  mutate(poster = coalesce(anon_poster, poster)) %>%
+  select(-anon_poster)
+
+
+top_anon_names <- top_posters_flashback$anon_poster
+
+top_posters_valfusk <- valfusk_anon %>%
+  filter(poster %in% top_anon_names)
+
+write_csv(top_posters_valfusk, "top_20_flashback_posters_anonymized.csv")
+
+
+ggplot(top_posters_flashback, aes(x = reorder(anon_poster, post_count), y = post_count, fill = anon_poster)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_viridis_d(option = "turbo", guide = "none") +
+  labs(
+    title = "Top 20 Flashback Posters (Anonymized)",
+    x = "User",
+    y = "Number of Posts"
+  ) +
+  theme_minimal()
+
+
+# List of political parties with full names and abbreviations
+party_keywords <- list(
+  "s" = c("socialdemokraterna", "sossarna", "sossar"),  # Social Democrats
+  "sd" = c("sverigedemokrater", "sverigedemokraterna"),  # Sweden Democrats
+  "m" = c("moderaterna", "moderater"),  # Moderate Party
+  "l" = c("liberaler", "liberalerna"),  # Liberals
+  "c" = c("centern", "centerpartiet"),  # Centre Party
+  "v" = c("vänstern", "vänsterpartiet"),  # Left Party
+  "kd" = c("kristdemokraterna"),  # Christian Democrats
+  "mp" = c("miljöparrister", "miljöpartiet")  # Green Party
+)
+
+# Convert the 'content' column to lowercase before searching for keywords
+Valfusk_flashback_data$lower_content <- tolower(Valfusk_flashback_data$content)
+
+# Create an empty list to store individual posts
+party_posts_data <- data.frame(party = character(), content = character(), stringsAsFactors = FALSE)
+
+# Loop through each party and get posts mentioning the party
+for (party in names(party_keywords)) {
+  # Combine all keywords into a single search pattern for the current party
+  search_pattern <- paste(party_keywords[[party]], collapse = "|")  # Use "|" to separate keywords
+  
+  # Search for the combined keywords in the lowercase 'content' column
+  Valfusk_flashback_data$keyword_mentions <- str_detect(Valfusk_flashback_data$lower_content, search_pattern)
+  
+  # Get the rows where the keywords were mentioned (posts that mention the party)
+  party_mentions_data <- Valfusk_flashback_data[Valfusk_flashback_data$keyword_mentions, ]
+  
+  # Add the results to the party_posts_data dataframe
+  party_mentions_data$party <- party  # Add the party column to the posts data
+  party_posts_data <- rbind(party_posts_data, party_mentions_data[, c("party", "content")])  # Only keep party and content columns
+}
+
+# Print the cleaned data (only rows mentioning parties)
+head(party_posts_data)  # Display the first few rows of party_posts_data
+
+# Optionally, save the cleaned dataset to a CSV file for further analysis
+write.csv(party_posts_data, "flashback_party_mentions.csv", row.names = FALSE)
+
+# Display the first few posts to check
+head(party_posts_data)
+
+
+# Now, split the data and save each party's posts in a separate CSV file
+for (party in unique(party_posts_data$party)) {
+  # Filter the posts for the current party
+  party_specific_data <- party_posts_data[party_posts_data$party == party, ]
+  
+  # Define the file name (e.g., "s_posts.csv", "v_posts.csv", etc.)
+  file_name <- paste0(party, "_posts.csv")
+  
+  # Save the filtered data to a CSV file
+  write.csv(party_specific_data, file_name, row.names = FALSE)
+  
+  # Optionally print a message to confirm
+  cat("Saved posts for party", party, "to", file_name, "\n")
+  
+  
+  # Define the city keywords (you can expand this list based on other cities and variations)
+  city_keywords <- list(
+    "stockholm" = c("stockholm", "stockholmare", "stockholms"),
+    "gothenburg" = c("gothenburg", "göteborg", "göteborgare"),
+    "malmo" = c("malmo", "malmö", "malmÖ")
+  )
+  
+  # Create a new column for lower case content (to make the search case-insensitive)
+  Valfusk_flashback_data$lower_content <- tolower(Valfusk_flashback_data$content)
+  
+  # Initialize a data frame to store the results
+  mentions_data <- data.frame(city = character(), mentions = numeric())
+  
+  # Loop through each city and calculate the total mentions for each
+  for (city in names(city_keywords)) {
+    # Combine all keywords into a single search pattern for the current city
+    search_pattern <- paste(city_keywords[[city]], collapse = "|")
+    
+    # Search for the combined keywords in the lowercase 'content' column
+    Valfusk_flashback_data$keyword_mentions <- str_detect(Valfusk_flashback_data$lower_content, search_pattern)
+    
+    # Get the overall count of mentions for the current city
+    total_mentions <- sum(Valfusk_flashback_data$keyword_mentions)
+    
+    # Append the results to the mentions_data data frame
+    mentions_data <- rbind(mentions_data, data.frame(city = city, mentions = total_mentions))
+    
+    # Print the total mentions for the current city
+    print(paste("Total mentions of", city, ":", total_mentions))
+  }
+  
+  # Define city colors (you can customize the colors for each city)
+  city_colors <- c(
+    "stockholm" = "#0072B2",  # Stockholm (blue)
+    "gothenburg" = "#9C1D40",  # Gothenburg (orange)
+    "malmo" = "#56B4E9"  # Malmö (light blue)
+    
+  )
+  
+  # Plot the data with city colors
+  city_plot <- ggplot(mentions_data, aes(x = reorder(city, mentions), y = mentions, fill = city)) +
+    geom_bar(stat = "identity") +
+    scale_fill_manual(values = city_colors) +  # Apply city colors
+    labs(title = "Total Mentions of Swedish Cities", 
+         x = "City", 
+         y = "Total Mentions") +
+    theme_minimal() +
+    coord_flip()  # Flip the coordinates to make it easier to read
+  
+  
+  
+  # Save 
+  ggsave("city_plot.png", plot = city_plot, width = 8, height = 6)
+  
+
+  
+  # Only keep the cities you're interested in
+  selected_cities <- c("stockholm", "malmo", "gothenburg")
+  selected_city_keywords <- city_keywords[names(city_keywords) %in% selected_cities]
+  
+  # Make sure the content column is in lowercase for case-insensitive matching
+  Valfusk_flashback_data$lower_content <- tolower(Valfusk_flashback_data$content)
+  
+  # Create an empty dataframe to store all matched city posts
+  city_posts_data <- data.frame(city = character(), content = character(), stringsAsFactors = FALSE)
+  
+  # Loop through each selected city
+  for (city in names(selected_city_keywords)) {
+    # Combine keywords into a single regex pattern
+    search_pattern <- paste(selected_city_keywords[[city]], collapse = "|")
+    
+    # Identify rows where the pattern matches the content
+    Valfusk_flashback_data$keyword_mentions <- str_detect(Valfusk_flashback_data$lower_content, search_pattern)
+    
+    # Filter the posts that mention the city
+    city_mentions_data <- Valfusk_flashback_data[Valfusk_flashback_data$keyword_mentions, ]
+    
+    # Add city column
+    city_mentions_data$city <- city
+    
+    # Append to the combined city posts dataframe
+    city_posts_data <- rbind(city_posts_data, city_mentions_data[, c("city", "content")])
+  }
+  
+  # Preview the result
+  head(city_posts_data)
+  
+  # Save the full dataset of city mentions
+  write.csv(city_posts_data, "flashback_city_mentions_top3.csv", row.names = FALSE)
+  
+  # Save separate CSV files per city
+  for (city in unique(city_posts_data$city)) {
+    city_specific_data <- city_posts_data[city_posts_data$city == city, ]
+    file_name <- paste0(city, "_posts.csv")
+    write.csv(city_specific_data, file_name, row.names = FALSE)
+    cat("Saved posts for city", city, "to", file_name, "\n")
+  }

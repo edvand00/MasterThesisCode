@@ -1,0 +1,507 @@
+# Set working directory
+setwd("~/masterthesis")
+
+# Load necessary libraries
+library(readr)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(patchwork)
+library(lubridate)  # For date handling
+
+# Load Reddit data
+Valfusk_reddit_data <- read_csv("Valfusk_reddit_data.csv")
+
+# View summary of the raw data
+summary(Valfusk_reddit_data)
+
+# Clean the data by selecting relevant columns
+clean_reddit_data <- Valfusk_reddit_data %>%
+  select(author, date, subreddit, text, comment, title)
+
+# Check for missing values
+is.na(clean_reddit_data)
+
+# Create a 'posts' column by merging text, comment, and title
+clean_reddit_data$posts <- coalesce(clean_reddit_data$text, "") %>%
+  paste(coalesce(clean_reddit_data$comment, ""), .) %>%
+  paste(coalesce(clean_reddit_data$title, ""), .)
+
+# Remove the original text, comment, and title columns as they are no longer needed
+clean_reddit_data$text <- NULL
+clean_reddit_data$comment <- NULL
+clean_reddit_data$title <- NULL
+
+# View the updated data frame
+head(clean_reddit_data)
+
+# Create a summary of the cleaned data
+summary(clean_reddit_data)
+
+# Ensure the date column is in Date format
+clean_reddit_data$date <- as.Date(clean_reddit_data$date)
+
+# Create a new column for the year
+clean_reddit_data$year <- format(clean_reddit_data$date, "%Y")
+
+# Count the total number of posts per day
+posts_per_day <- clean_reddit_data %>%
+  group_by(date) %>%
+  summarise(post_count = n())
+
+# Check for missing values in the post_count
+sum(is.na(posts_per_day$post_count))
+
+# Plot number of posts per day
+ggplot(posts_per_day, aes(x = date, y = post_count)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Number of Posts per Day", x = "Date", y = "Number of Posts") +
+  theme_minimal()
+
+# Plot number of posts per day for specific periods (Election years)
+# Plot 2018 National Election
+plot_2018 <- ggplot(posts_per_day, aes(x = date, y = post_count)) +
+  geom_area(fill = "darkgoldenrod", alpha = 0.7) +
+  geom_line(linewidth = 0.5, lineend = "round", color = "darkgoldenrod") +
+  geom_point(color = "darkgoldenrod") +
+  labs(title = "2018 National Election", x = "(974 posts in total)", y = "") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b", limits = as.Date(c("2018-09-01", "2018-10-01"))) +
+  scale_y_log10() +
+  theme_classic() +
+  geom_vline(xintercept = as.Date("2018-09-09"), linetype = "dashed", color = "red")
+
+# Plot 2019 EU Election (No data available for 2019)
+plot_2019 <- ggplot(posts_per_day, aes(x = date, y = post_count)) +
+  geom_area(fill = "deepskyblue4", alpha = 0.7) +
+  geom_line(linewidth = 0.5, lineend = "round", color = "deepskyblue4") +
+  geom_point(color = "deepskyblue4") +
+  labs(title = "2019 EU Election", x = "(0 posts in total)", y = "") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b", limits = as.Date(c("2019-05-01", "2019-06-01"))) +
+  scale_y_log10() +
+  theme_classic() +
+  geom_vline(xintercept = as.Date("2019-05-23"), linetype = "dashed", color = "red")
+
+# Plot 2022 National Election
+plot_2022 <- ggplot(posts_per_day, aes(x = date, y = post_count)) +
+  geom_area(fill = "darkgoldenrod", alpha = 0.7) +
+  geom_line(linewidth = 0.5, lineend = "round", color = "darkgoldenrod") +
+  geom_point(color = "darkgoldenrod") +
+  labs(title = "2022 National Election", x = "(508 posts in total)", y = "") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b", limits = as.Date(c("2022-09-01", "2022-10-15"))) +
+  scale_y_log10() +
+  theme_classic() +
+  geom_vline(xintercept = as.Date("2022-09-11"), linetype = "dashed", color = "red")
+
+# Plot 2024 EU Election
+plot_2024 <- ggplot(posts_per_day, aes(x = date, y = post_count)) +
+  geom_area(fill = "deepskyblue4", alpha = 0.7) +
+  geom_line(linewidth = 0.5, lineend = "round", color = "deepskyblue4") +
+  geom_point(color = "deepskyblue4") +
+  labs(title = "2024 EU Election", x = "(65 posts in total)", y = "") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b", limits = as.Date(c("2024-06-01", "2024-06-15"))) +
+  scale_y_log10() +
+  theme_classic() +
+  geom_vline(xintercept = as.Date("2024-06-09"), linetype = "dashed", color = "red")
+
+# Combine the plots into a 2x2 grid using patchwork
+plot_grid <- (plot_2018 + plot_2019) / (plot_2022 + plot_2024) + 
+  plot_annotation(
+    title = "Election Fraud Claims Across Multiple Elections on Reddit",
+    subtitle = "Time series plot (logarithmic scale)",
+    caption = "Retrieved from: https://www.reddit.com/"
+  )
+
+# Print the grid
+plot_grid
+
+# Count the total number of posts per year
+posts_per_year <- clean_reddit_data %>%
+  group_by(year) %>%
+  summarise(total_posts = n())
+
+# View the results
+posts_per_year
+
+
+write.csv(clean_reddit_data, "valfusk_reddit_clean_data.csv", row.names = TRUE)
+
+
+
+
+head(clean_reddit_data)
+
+
+# Ensure the 'date' column is in Date format
+clean_reddit_data <- clean_reddit_data %>%
+  mutate(date = as.Date(date))
+
+# Filter for 2018
+reddit_2018 <- clean_reddit_data %>%
+  filter(year(date) == 2018)
+
+# Filter for 2022
+reddit_2022 <- clean_reddit_data %>%
+  filter(year(date) == 2022)
+
+# Write to CSV
+write_csv(reddit_2018, "reddit_data_2018.csv")
+write_csv(reddit_2022, "reddit_data_2022.csv")
+
+
+
+
+# Clean dataset: remove [deleted] and NA authors
+clean_reddit_data_filtered <- clean_reddit_data %>%
+  filter(!is.na(author), author != "[deleted]")
+
+top_posters_20 <- clean_reddit_data_filtered %>%
+  count(author, name = "post_count") %>%
+  arrange(desc(post_count)) %>%
+  slice_head(n = 20) %>%
+  mutate(anon_author = paste0("user_", row_number()))
+
+clean_reddit_data_anon <- clean_reddit_data_filtered %>%
+  left_join(top_posters_20 %>% select(author, anon_author), by = "author") %>%
+  mutate(author = coalesce(anon_author, author)) %>%
+  select(-anon_author)
+
+
+ggplot(top_posters_20, aes(x = reorder(anon_author, post_count), y = post_count, fill = anon_author)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_viridis_d(option = "plasma", guide = "none") +
+  labs(
+    title = "Top 20 Reddit Posters (Anonymized, Real Users Only)",
+    x = "User",
+    y = "Number of Posts"
+  ) +
+  theme_minimal()
+
+
+top_anon_names <- top_posters_20$anon_author
+
+top_posters_posts_anon <- clean_reddit_data_anon %>%
+  filter(author %in% top_anon_names)
+
+write_csv(top_posters_posts_anon, "top_20_posters_anonymized.csv")
+
+
+
+#keyword 
+# Ensure the 'posts' column is in UTF-8 encoding
+clean_reddit_data$posts <- iconv(clean_reddit_data$posts, from = "latin1", to = "UTF-8")
+
+
+
+# Define political parties and their keywords
+party_keywords <- list(
+  "s" = c("socialdemokraterna", "sossarna", "sossar"),  # Social Democrats
+  "sd" = c("sverigedemokrater", "sverigedemokraterna"),  # Sweden Democrats
+  "m" = c("moderaterna", "moderater"),  # Moderate Party
+  "l" = c("liberaler","liberalerna"),  # Liberals
+  "c" = c("centern", "centerpartiet"),  # Centre Party
+  "v" = c("vänstern", "vänsterpartiet"),  # Left Party
+  "kd" = c("kristdemokraterna"),  # Christian Democrats
+  "mp" = c("miljöparrister", "miljöpartiet")  # Green Party
+)
+
+# Create an empty data frame to store mentions count
+mentions_data <- data.frame(party = character(), mentions = numeric(), stringsAsFactors = FALSE)
+
+# Loop through each party and count mentions in the 'posts' column
+for (party in names(party_keywords)) {
+  search_pattern <- paste(party_keywords[[party]], collapse = "|")  # Combine keywords with "|"
+  clean_reddit_data$keyword_mentions <- str_detect(tolower(clean_reddit_data$posts), search_pattern)  # Check for matches
+  
+  # Count total mentions for the party
+  total_mentions <- sum(clean_reddit_data$keyword_mentions, na.rm = TRUE)
+  
+  # Add the results to the data frame
+  mentions_data <- rbind(mentions_data, data.frame(party = party, mentions = total_mentions))
+}
+
+# Define party colors
+party_colors <- c(
+  "s" = "#E30000",  # Social Democrats (red)
+  "sd" = "#006AA7",  # Sweden Democrats (blue)
+  "m" = "#0077C8",  # Moderate Party (blue)
+  "l" = "#FFCC00",  # Liberals (yellow)
+  "c" = "#77B800",  # Centre Party (green)
+  "v" = "#9C1D40",  # Left Party (red)
+  "kd" = "#005B87",  # Christian Democrats (blue)
+  "mp" = "#6BBF41"  # Green Party (green)
+)
+
+# Plot mentions of political parties
+plot1 <- ggplot(mentions_data, aes(x = reorder(party, mentions), y = mentions, fill = party)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = party_colors) + 
+  labs(title = "Mentions of Political Parties on Reddit", x = "Political Party", y = "Total Mentions") +
+  theme_minimal() +
+  coord_flip()
+
+print(plot1)
+
+
+# Define the party datasets
+party_dfs <- list(
+  s = s,       # Your data frame with Social Democrat posts
+  sd = sd,     # Sweden Democrats
+  m = m        # Moderates
+)
+
+# Loop through and save each as a CSV file
+for (party in names(party_dfs)) {
+  # Extract posts and prepare for CSV
+  party_df <- party_dfs[[party]]
+  
+  # Define the file name for CSV
+  file_name <- paste0(party, "_posts.csv")
+  
+  # Write to CSV
+  write.csv(party_df, file_name, row.names = FALSE)
+}
+
+#Save plot1
+ggsave("plot1.png", plot = plot1, width = 8, height = 6)
+
+# Define city keywords
+city_keywords <- list(
+  "stockholm" = c("stockholm", "stockholmare", "stockholms"),
+  "gothenburg" = c("gothenburg", "göteborg", "göteborgare"),
+  "malmo" = c("malmo", "malmö", "malmÖ")
+)
+
+
+
+
+# Keywords for each city
+stockholm_keywords <- c("stockholm", "stockholmare")
+orebro_keywords <- c("örebro", "örebroare")
+
+
+head(clean_reddit_data)
+
+# Define keyword filters (case-insensitive)
+national_keywords <- c("nationell", "riksdagsval")
+municipal_keywords <- c("kommun", "kommunval")
+regional_keywords <- c("region", "landsting")
+
+# Filter by keyword category and select only the posts column
+national_posts <- clean_reddit_data %>%
+  filter(str_detect(str_to_lower(posts), str_c(national_keywords, collapse = "|"))) %>%
+  select(posts) %>%
+  mutate(election_type = "National")
+
+municipal_posts <- clean_reddit_data %>%
+  filter(str_detect(str_to_lower(posts), str_c(municipal_keywords, collapse = "|"))) %>%
+  select(posts) %>%
+  mutate(election_type = "Municipal")
+
+regional_posts <- clean_reddit_data %>%
+  filter(str_detect(str_to_lower(posts), str_c(regional_keywords, collapse = "|"))) %>%
+  select(posts) %>%
+  mutate(election_type = "Regional")
+
+# Save to CSV, only including the 'posts' and 'election_type' columns
+write_csv(national_posts, "reddit_national_posts.csv")
+write.csv(municipal_posts, "reddit_municipal_posts.csv", fileEncoding = "UTF-8")
+write_csv(regional_posts, "reddit_regional_posts.csv")
+
+# Combine all posts into one dataset
+all_posts <- bind_rows(national_posts, municipal_posts, regional_posts)
+
+# Plot the combined data
+combined_plot <- all_posts %>%
+  count(year = lubridate::year(date), election_type) %>%
+  ggplot(aes(x = year, y = n, fill = election_type)) +
+  geom_col(position = "dodge") +
+  labs(title = "Election Type Posts Over Time", x = "Year", y = "Posts") +
+  scale_fill_manual(values = c("National" = "#1f77b4", "Municipal" = "#2ca02c", "Regional" = "#ff7f0e"))
+
+# Print the combined plot
+combined_plot
+
+
+
+
+
+
+
+
+
+
+
+# Assuming your dataset is called clean_reddit_data
+
+# Posts mentioning Stockholm
+stockholm_posts <- clean_reddit_data %>%
+  filter(str_detect(str_to_lower(posts), str_c(stockholm_keywords, collapse = "|")))
+
+# Posts mentioning Örebro
+orebro_posts <- clean_reddit_data %>%
+  filter(str_detect(str_to_lower(posts), str_c(orebro_keywords, collapse = "|")))
+
+
+
+write_csv(stockholm_posts, "stockholm_mentions.csv")
+write_csv(orebro_posts, "orebro_mentions.csv")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Initialize a data frame to store results
+city_mentions_data <- data.frame(city = character(), mentions = numeric())
+
+# Loop through each city and calculate mentions in the 'posts' column
+for (city in names(city_keywords)) {
+  search_pattern <- paste(city_keywords[[city]], collapse = "|")
+  clean_reddit_data$keyword_mentions <- str_detect(tolower(clean_reddit_data$posts), search_pattern)  # Check for matches
+  
+  # Count total mentions for the city
+  total_mentions <- sum(clean_reddit_data$keyword_mentions, na.rm = TRUE)
+  
+  # Add to city_mentions_data
+  city_mentions_data <- rbind(city_mentions_data, data.frame(city = city, mentions = total_mentions))
+}
+
+# Define city colors
+city_colors <- c(
+  "stockholm" = "#0072B2",  # Stockholm (blue)
+  "gothenburg" = "#9C1D40",  # Gothenburg (red)
+  "malmo" = "#56B4E9"  # Malmö (light blue)
+)
+
+# Plot mentions of cities
+plot2 <- ggplot(city_mentions_data, aes(x = reorder(city, mentions), y = mentions, fill = city)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = city_colors) + 
+  labs(title = "Mentions of Cities on Reddit", x = "City", y = "Total Mentions") +
+  theme_minimal() +
+  coord_flip()
+
+head(clean_reddit_data)
+
+# Ensure the content column is in lowercase for case-insensitive matching (already in your dataset)
+# You have a 'lower_content' column, so no need to modify it.
+
+# Create an empty dataframe to store all matched city posts
+city_posts_data <- tibble(city = character(), author = character(), date = date(), 
+                          subreddit = character(), posts = character(), 
+                          year = character(), keyword_mentions = logical())
+
+# Loop through each selected city
+for (city in names(selected_city_keywords)) {
+  # Combine keywords into a single regex pattern
+  search_pattern <- paste(selected_city_keywords[[city]], collapse = "|")
+  
+  # Identify rows where the pattern matches the content (case insensitive)
+  cclean_reddit_data$keyword_mentions <- str_detect(celean_reddit_data$lower_content, search_pattern)
+  
+  # Filter the posts that mention the city
+  city_mentions_data <- cclean_reddit_data[celean_reddit_data$keyword_mentions, ]
+  
+  # Add city column
+  city_mentions_data$city <- city
+  
+  # Append to the combined city posts dataframe
+  city_posts_data <- bind_rows(city_posts_data, city_mentions_data[, c("city", "author", "date", "subreddit", "posts", "year", "keyword_mentions")])
+}
+
+# Preview the result
+head(city_posts_data)
+
+# Save the full dataset of city mentions
+write.csv(city_posts_data, "reddit_city_mentions_uppsala_stockholm.csv", row.names = FALSE)
+
+# Save separate CSV files per city
+for (city in unique(city_posts_data$city)) {
+  city_specific_data <- city_posts_data[city_posts_data$city == city, ]
+  file_name <- paste0(city, "_reddit_posts.csv")
+  write.csv(city_specific_data, file_name, row.names = FALSE)
+  cat("Saved posts for city", city, "to", file_name, "\n")
+}
+
+# Preview the result
+head(city_posts_data)
+
+# Save the full dataset of city mentions
+write.csv(city_posts_data, "reddit_city_mentions_uppsala_stockholm.csv", row.names = FALSE)
+
+# Save separate CSV files per city
+for (city in unique(city_posts_data$city)) {
+  city_specific_data <- city_posts_data[city_posts_data$city == city, ]
+  file_name <- paste0(city, "_reddit_posts.csv")
+  write.csv(city_specific_data, file_name, row.names = FALSE)
+  cat("Saved posts for city", city, "to", file_name, "\n")
+}
+# Preview the result
+head(city_posts_data)
+
+# Save the full dataset of city mentions
+write.csv(city_posts_data, "reddit_city_mentions_uppsala_stockholm.csv", row.names = FALSE)
+
+# Save separate CSV files per city
+for (city in unique(city_posts_data$city)) {
+  city_specific_data <- city_posts_data[city_posts_data$city == city, ]
+  file_name <- paste0(city, "_reddit_posts.csv")
+  write.csv(city_specific_data, file_name, row.names = FALSE)
+  cat("Saved posts for city", city, "to", file_name, "\n")
+}
+
+
+
+
+# Save plot2
+ggsave("plot2.png", plot = plot2, width = 8, height = 6)
+
+# Define the categories and associated keywords
+filters <- list(
+  "Election Process" = c("valmyndighet", "rösträkning", "valsedel", "röstning", "vallokal", "rösta", "röst"),
+  "Voter Skepticism" = c("korruption", "manipulation", "falsk röster", "skandal", "valfrågor", "debatt", "löften", "missnöje", "protest"),
+  "Election Security" = c("påverkansoperation", "desinformation", "valpåverkan", "rysk påverkan", "trollfabrik")
+)
+
+# Create an empty data frame to store the category mentions
+category_mentions_data <- data.frame(category = character(), mentions = numeric())
+
+# Loop through each category and count mentions in 'posts'
+for (category in names(filters)) {
+  search_pattern <- paste(filters[[category]], collapse = "|")
+  clean_reddit_data$keyword_mentions <- str_detect(tolower(clean_reddit_data$posts), search_pattern)  # Check for matches
+  
+  # Count total mentions for the category
+  total_mentions <- sum(clean_reddit_data$keyword_mentions, na.rm = TRUE)
+  
+  # Add to category_mentions_data
+  category_mentions_data <- rbind(category_mentions_data, data.frame(category = category, mentions = total_mentions))
+}
+
+# Define category colors
+category_colors <- c(
+  "Election Process" = "#0072B2",  # Election Process (blue)
+  "Voter Skepticism" = "#77B800",  # Voter Skepticism (green)
+  "Election Security" = "#D55E00"  # Election Security (orange)
+)
+
+# Plot mentions of categories
+plot3 <- ggplot(category_mentions_data, aes(x = reorder(category, mentions), y = mentions, fill = category)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = category_colors) + 
+  labs(title = "Mentions of Election-related Categories on Reddit", x = "Category", y = "Total Mentions") +
+  theme_minimal() +
+  coord_flip()
+
+# Save plot3
+ggsave("plot3.png", plot = plot3, width = 8, height = 6)
